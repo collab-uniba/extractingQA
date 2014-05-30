@@ -1,0 +1,125 @@
+--- find unanswered questions, version 1
+select q.Id, pt.TagId
+from Posts q
+join PostTags pt on q.Id = pt.PostId
+join Tags t on t.Id = pt.TagId
+where (select count(*) from Posts a where a.ParentId = q.Id and a.Score > 0) = 0
+and CommunityOwnedDate is null
+and ClosedDate is null
+and q.ParentId is null
+and AcceptedAnswerId is null
+and t.TagName = 'tag name here'
+
+
+--- find unanswered questions, version 2
+select q.Id, pt.TagId
+from Posts q
+join PostTags pt on q.Id = pt.PostId
+join Tags t on t.Id = pt.TagId
+where (select count(*) from Posts answers where answers.ParentId = q.Id) = 0
+and CommunityOwnedDate is null
+and ClosedDate is null
+and q.ParentId is null
+and AcceptedAnswerId is null
+and t.TagName = 'tag name here'
+
+
+--- how to find questions that were closed as duplicates/off-topic/etc:
+select q.Id, pt.TagId, ClosedDate
+from Posts q
+join PostTags pt on q.Id = pt.PostId
+join Tags t on t.Id = pt.TagId
+and ClosedDate is not null
+and q.ParentId is null
+and t.TagName = 'tag name here'
+
+
+--- find answer count , comment count
+select q.Id, pt.TagId, answerCount, commentCount
+from Posts q
+join PostTags pt on q.Id = pt.PostId
+join Tags t on t.Id = pt.TagId
+where commentCount =0
+and answerCount=0
+and CommunityOwnedDate is null
+and ClosedDate is null
+and q.ParentId is null
+and AcceptedAnswerId is null
+and t.TagName = 'tag name here'
+
+
+--- find avg/min/max view count by tag
+select pt.TagId, min(viewcount), max(viewcount), avg(viewcount)
+from Posts q
+join PostTags pt on q.Id = pt.PostId
+join Tags t on t.Id = pt.TagId
+where q.ParentId is null
+and t.TagName = 'tag name here'
+group by pt.TagId
+
+
+--- find mean response time, std dev for a particular tag
+--- with help from http://data.stackexchange.com/stackoverflow/query/9439
+with diffs as
+(select cast(a.creationdate - q.creationdate as float) as d
+    from posts q
+    join posts a on a.id = q.acceptedanswerid
+    join postTags pt on q.Id = pt.postId
+    join Tags t on t.Id = pt.TagId
+    where t.TagName = 'tag name here')
+select avg(d), stdev(d) from diffs;
+
+
+--- find median response time for a particular tag
+--- with help from: http://data.stackexchange.com/stackoverflow/query/9449
+with diffs as
+(select cast(a.creationdate - q.creationdate as float) as d
+    from posts q
+    join posts a on a.id = q.acceptedanswerid
+    join postTags pt on q.Id = pt.postId
+    join Tags t on t.Id = pt.TagId
+    where t.TagName = 'tag name here')
+SELECT
+(
+ (SELECT MAX(d) FROM
+   (SELECT TOP 50 PERCENT d FROM diffs ORDER BY d) AS BottomHalf)
+ +
+ (SELECT MIN(d) FROM
+   (SELECT TOP 50 PERCENT d FROM diffs ORDER BY d DESC) AS TopHalf)
+) / 2 AS Median
+
+
+--- find unique users who asked, answered, or commented in a particular tag
+select distinct u.id
+from users u join posts p on u.id = p.owneruserid
+where p.tags like '%tag name here%'
+
+union
+
+select distinct u.id
+from users u join posts p on u.id = p.owneruserid
+where p.parentId
+in (select q.id 
+    from posts q 
+    where q.tags like '%tag name here%')
+
+union
+
+select distinct c.userid
+from comments c
+where c.postid
+in (select q.id 
+    from posts q 
+    where q.tags like '%tag name here%')
+
+union
+
+select distinct c.userid
+from comments c
+where c.postid
+in (select p.id
+    from posts p
+    where p.parentId
+    in (select q.id 
+        from posts q 
+        where q.tags like '%tag name here%'));
