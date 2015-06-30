@@ -21,3 +21,4 @@ class DsscraperItem(Item):
 	views = Field()
 	answers = Field()
 	resolve = Field()
+	upvotes = Field()
