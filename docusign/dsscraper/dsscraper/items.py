@@ -9,16 +9,15 @@ from scrapy.item import Item, Field
 
 
 class DsscraperItem(Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    # pass
+
 	uid = Field()
+	type = Field()
 	title = Field()
 	text = Field()
-	url = Field()
 	date_time = Field()
 	tags = Field()
 	views = Field()
 	answers = Field()
 	resolve = Field()
 	upvotes = Field()
+	url = Field()

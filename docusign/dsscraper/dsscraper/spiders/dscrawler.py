@@ -20,16 +20,11 @@ class DscrawlerSpider(CrawlSpider):
 		#'http://community.docusign.com/t5/Misc-Dev-Archive-READ-ONLY/bd-p/Ask_A_Development_Question_Board']
 
 	rules = (
-		Rule( LinkExtractor( deny=('/\?q=change_me_/', 'searchpage', '/viewprofilepage', 'kudosleaderboardpage',), allow=('/td-p/',) ), callback='parse_discussion' ),
-        	#Rule(LinkExtractor(allow='/t5/DocuSign-API-Integration-NET-READ-ONLY/bd-p/'), callback='parse_page', follow=True),
-		#Rule(LinkExtractor(allow='/t5/DocuSign-API-Integration-Java-READ-ONLY/bd-p/'), callback='parse_page', follow=True),
-		#Rule(LinkExtractor(allow='/t5/DocuSign-API-Integration-PHP-READ-ONLY/bd-p/'), callback='parse_page', follow=True),
-		#Rule(LinkExtractor(allow='/t5/DocuSign-API-Integration-Ruby-Salesforce-and-Other-READ-ONLY/bd-p/'), callback='parse_page', follow=True),
-	        #Rule(LinkExtractor(allow='/t5/Misc-Dev-Archive-READ-ONLY/bd-p/'), callback='parse_page', follow=True),
+		Rule( LinkExtractor( deny=('/\?q=change_me_/', 'searchpage', 'viewprofilepage', 'kudosleaderboardpage', 'userloginpage', 'userregistrationpage', 'DocuSignIdeas', ), allow=('/td-p/', r'\/page\/\d*$',) ), callback='parse_discussion', follow=True ),
 	)
 
 	#parsed_pages = set()
-	uid = 0 # static item counter, ++1 as a new discussion is crawled
+	uid = 0 # static item counter, +1 as a new discussion is crawled
 
 	# scrape answers
         def parse_answers(self, response):
@@ -43,7 +38,7 @@ class DscrawlerSpider(CrawlSpider):
                 self.logger.debug('Parsing %s answers', answers)
 		for i in range(0, answers):
                         item = DsscraperItem()
-
+			item['type'] = 'answer'
                         item['uid'] = uid # same as the discussion thread the answer belongs to
 
                         answer = response.xpath('//*[@id="lineardisplaymessageviewwrapper_{0}"]'.format(i))
@@ -52,9 +47,7 @@ class DscrawlerSpider(CrawlSpider):
                                 '//*[@id="messageview_{0}"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[1]/div[2]/div/div[1]/div/div[1]/div/div/h1/text()'.format(i)).extract() )
 
                         text = response.xpath('//*[@id="messagebodydisplay_{0}"]/div/p'.format(i)).extract()
-                        for row in text:
-                                row = unidecode.unidecode(row)
-                        item['text'] = "\n".join(text)
+                        item['text'] = unidecode.unidecode( "\n".join(text) )
 
                         date = unidecode.unidecode( response.xpath(
                                 '//*[@id="messageview_{0}"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[1]/div[2]/div/p/span/span[1]/text()'.format(i)).extract()[0].strip() )
@@ -71,10 +64,11 @@ class DscrawlerSpider(CrawlSpider):
                         item['tags'] = 'N/A'
 
                         # kudos are upvotes
-                        item['upvotes'] = 'N/A' #response.xpath('').extract()[0].strip()
+                        upvotes = response.xpath('//*[@id="messageview_0"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[2]/div[3]/div/div/div/div/div/div/div/span/span/text()'.format(i)).extract()[0].strip()
+			item['upvotes'] = int(upvotes)
 
                         views = response.xpath('//*[@id="messageview_{0}"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[2]/div[1]/div/div[2]/span[2]/text()'.format(i)).extract()[0]
-                        item['views'] = views[1:-7].replace(',', '') ## removes comma, leading "(" and trailing " Views)"
+                        item['views'] = int( views[1:-7].replace(',', '') ) ## removes comma, leading "(" and trailing " Views)"
 
                         thread.append(item)
 
@@ -98,6 +92,7 @@ class DscrawlerSpider(CrawlSpider):
 		DscrawlerSpider.uid += 1		
 
 		item = DsscraperItem()
+		item['type'] = 'question'
 		item['uid'] = DscrawlerSpider.uid
 
 		# //*[@id="link_4"]
@@ -112,21 +107,19 @@ class DscrawlerSpider(CrawlSpider):
 		item['date_time'] = date + ' ' + time
 
 		text = response.xpath('//*[@id="messagebodydisplay"]/div/p').extract()
-		for row in text:
-			row = unidecode.unidecode(row)
-		item['text'] = "\n".join(text)
+		item['text'] = unidecode.unidecode( "\n".join(text) )
 
-		resolve = response.xpath('//*[@id="messagebodydisplay"]/div/div/p/text()').extract()[0].strip()
-		if 'Solved!' in resolve:
+		resolve = response.xpath('//*[@id="messagebodydisplay"]/div/div/p/text()').extract() 
+		if resolve and 'Solved!' in resolve[0].strip():
 			item['resolve'] = True
 		else:
 			item['resolve'] = False
 
 		views = response.xpath('//*[@id="messageview"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[2]/div[1]/div/div[2]/span[2]/text()').extract()[0]
-		item['views'] = views[1:-7].replace(',', '') ## removes comma, leading "(" and trailing " Views)"
+		item['views'] = int( views[1:-7].replace(',', '') ) ## removes comma, leading "(" and trailing " Views)"
 
 		# kudos are upvotes
-		item['upvotes'] = response.xpath('//*[@id="kudosButtonV2"]/div/div[1]/span/span[@class="MessageKudosCount lia-component-kudos-widget-message-kudos-count"]/text()').extract()[0].strip()
+		item['upvotes'] = int( response.xpath('//*[@id="kudosButtonV2"]/div/div[1]/span/span[@class="MessageKudosCount lia-component-kudos-widget-message-kudos-count"]/text()').extract()[0].strip() )
 
 		answers = response.xpath('//*[@id="messageview"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[2]/div[1]/div/div[2]/span[1]/text()[2]').extract()[0].strip()
 		item['answers'] = int(answers[3:]) - 1 # the no of answers is the no of messages in the discussion minus the question itself
