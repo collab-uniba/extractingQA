@@ -55,7 +55,7 @@ class DscrawlerSpider(CrawlSpider):
 			'//*[@id="messageview"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[1]/div[2]/div/p/span/span[1]/text()').extract()[0].strip()
 		date = unidecode(date)
 		time = response.xpath('//*[@id="messageview"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[1]/div[2]/div/p/span/span[2]/text()').extract()[0] 
-		item['date_time'] = date + ' ' + time
+		item['date_time'] = date.replace("-", "/") + ' ' + time
 
 		text = response.xpath('//*[@id="messagebodydisplay"]/div/p').extract()
 		item['text'] = unidecode("\n".join(text))
@@ -126,7 +126,7 @@ class DscrawlerSpider(CrawlSpider):
                                 '//*[@id="messageview_{0}"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[1]/div[2]/div/p/span/span[1]/text()'.format(i)).extract()[0].strip()
 			date = unidecode(date)
                         time = response.xpath('//*[@id="messageview_{0}"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[1]/div[2]/div/p/span/span[2]/text()'.format(i)).extract()[0]
-                        item['date_time'] = date + ' ' + time
+                        item['date_time'] = date.replace("-", "/") + ' ' + time
 
                         resolve = response.xpath('//*[@id="messageview_{0}"]/div/div/div/div[3]/div/div/div[2]/div/div/div/div[1]/div[2]/div/div[1]/div/div[1]/div/div/span[@class="solution"]'.format(i))
                         if resolve:
